@@ -27,8 +27,8 @@ class MRKLOutputParser(AgentOutputParser):
             action = action_match.group(1).strip()
             action_input = action_match.group(2)
             tool_input = action_input.strip(" ")
-            # ensure if its a well formed SQL query we don't remove any trailing " chars
-            if tool_input.startswith("SELECT ") is False:
+            # ensure if its a well formed SQL query or terminal action we don't remove any trailing " chars
+            if not (tool_input.startswith("SELECT ") or action == "terminal"):
                 tool_input = tool_input.strip('"')
 
             return AgentAction(action, tool_input, text)
