@@ -1,0 +1,11 @@
+version: "3.8"
+services:
+  pgvector:
+    image: ankane/pgvector:latest
+    environment:
+      POSTGRES_DB: pgvector
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+    ports:
+      - target: 5432
+        published: 5432
