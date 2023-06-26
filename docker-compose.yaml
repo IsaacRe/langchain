@@ -9,3 +9,10 @@ services:
     ports:
       - target: 5432
         published: 5432
+  sandbox:
+    build:
+      context: .
+      dockerfile: sandbox.Dockerfile
+    ports:
+      - target: 8000
+        published: 8000

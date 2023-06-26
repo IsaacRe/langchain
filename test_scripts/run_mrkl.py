@@ -11,6 +11,7 @@ from langchain.experimental.autonomous_agents import BabyAGI, AutoGPT
 from langchain.schema import LLMResult
 from langchain.vectorstores.pgvector import PGVector
 from langchain.tools.file_management import *
+from langchain.tools.sandbox import SandboxTool
 
 FILE_MANAGEMENT_TOOLS = {
     CopyFileTool,
@@ -70,10 +71,10 @@ embed = OpenAIEmbeddings(
     openai_api_key=OPENAI_API_KEY,
 )
 
-vector_store = PGVector(
-    connection_string=PGVECTOR_DB_URL,
-    embedding_function=embed,
-)
+# vector_store = PGVector(
+#     connection_string=PGVECTOR_DB_URL,
+#     embedding_function=embed,
+# )
 
 # vector_store = Pinecone(
 #     index=pinecone_index,
@@ -94,7 +95,7 @@ def count_tokens(agent, query):
 #     chain_type="stuff",  # one of "stuff", "map_reduce", "map_rerank", and "refine"
 # )
 
-tools = load_tools(["python_repl"])
+tools = [SandboxTool()] #load_tools(["python_repl"])
 agent = AgentExecutor.from_agent_and_tools(
     agent=ZeroShotAgent.from_llm_and_tools(
         llm=llm,
@@ -107,5 +108,5 @@ agent = AgentExecutor.from_agent_and_tools(
 
 result = count_tokens(
     agent, 
-    "Print 'hello' in python"
+    "Print 'hello'"
 )
