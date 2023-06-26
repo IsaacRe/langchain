@@ -29,7 +29,12 @@ async def execute_code(code_data: CodeData):
             raise HTTPException(status_code=400, detail=str(e))
     elif code_data.code_type == "shell":
         try:
-            output = subprocess.check_output(code_data.code, stderr=subprocess.STDOUT, shell=True, text=True)
+            buffer = io.BytesIO()
+            process = subprocess.Popen(code_data.code, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            for c in iter(lambda: process.stdout.read(1), b""):
+                sys.stdout.buffer.write(c)
+                buffer.write(c)
+            output = buffer.getvalue().decode()
             return {"output": output.strip()} if output.strip() else {"message": "OK"}
         except subprocess.CalledProcessError as e:
             raise HTTPException(status_code=400, detail=str(e.output))
