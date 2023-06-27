@@ -3,6 +3,32 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Any, Dict
 import pexpect
+from datetime import datetime, timedelta
+import time
+
+READ_BUFFER = 1_000_000
+
+
+def poll_for_output(
+    process: pexpect.spawn,
+    poll_time: float = 0.2,
+    idle_timeout: float = 5.0,
+    hard_timeout: float = 30.0,
+) -> str:
+    end_time = datetime.utcnow() + timedelta(seconds=hard_timeout)
+    output = b""
+    while True:
+        remaining_time = (end_time - datetime.utcnow()).total_seconds()
+        try:
+            output += process.read_nonblocking(READ_BUFFER, timeout=min(remaining_time, idle_timeout))
+        except pexpect.exceptions.TIMEOUT:
+            return output
+        except pexpect.exceptions.EOF:
+            return output
+        remaining_time = (end_time - datetime.utcnow()).total_seconds()
+        if remaining_time <= poll_time:
+            return output
+        time.sleep(poll_time)
 
 
 class SandboxShell:
@@ -14,12 +40,12 @@ class SandboxShell:
     def execute(self, command: str) -> str:
         if self.subprocess is None:
             process = pexpect.spawn(command + "\n")
-            out = process.read_nonblocking(1000000, timeout=self.timeout)  # make sure this waits for command to finish
+            out = poll_for_output(process)
             if process.isalive():
                 self.subprocess = process
         else:
             self.subprocess.send(command + "\n")
-            out = self.subprocess.read_nonblocking(1000000, timeout=self.timeout)
+            out = poll_for_output(self.subprocess)
             if not self.subprocess.isalive():
                 self.subprocess.close()
                 self.subprocess = None

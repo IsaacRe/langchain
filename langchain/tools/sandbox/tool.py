@@ -3,6 +3,15 @@ from langchain.tools.base import BaseTool
 import requests
 import os
 
+MAX_OUTPUT_LENGTH = 1000
+
+
+def abbreviate_output(output: str) -> str:
+    prefix_length = suffix_length = MAX_OUTPUT_LENGTH // 2
+    if len(output) > MAX_OUTPUT_LENGTH:
+        return output[:prefix_length] + "..." + output[-suffix_length:]
+    return output
+
 
 class SandboxTool(BaseTool):
     """Tool to run shell commands in isolated container."""
@@ -32,7 +41,7 @@ class SandboxTool(BaseTool):
         response = requests.post(url, headers=headers, json=json_data)
 
         if response.status_code == 200:
-            data = response.json()
-            return data
+            data = response.json()["message"]
+            return abbreviate_output(data)
         else:
             return f"Request failed, status code: {response.status_code}"
