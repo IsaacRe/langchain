@@ -7,9 +7,10 @@ FROM python:3.10
 RUN pip install fastapi
 RUN pip install uvicorn
 RUN pip install pydantic
+RUN pip install pexpect
 
 COPY scripts/run_sandbox.py /app/
 WORKDIR /app
 
 EXPOSE 8000
-CMD ["uvicorn", "run_sandbox:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "run_sandbox:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

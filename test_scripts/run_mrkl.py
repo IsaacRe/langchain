@@ -108,5 +108,5 @@ agent = AgentExecutor.from_agent_and_tools(
 
 result = count_tokens(
     agent, 
-    "Print 'hello'"
+    "Install numpy and make a flat vector of ones"
 )

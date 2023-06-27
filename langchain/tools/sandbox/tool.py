@@ -10,7 +10,7 @@ class SandboxTool(BaseTool):
     name: str = "terminal"
     """Name of tool."""
 
-    description: str = f"Run shell commands on this Linux machine."
+    description: str = f"Run shell commands on this Linux machine. To exit the current shell, output '^D'."
     """Description of tool."""
 
     def _run(self, query: str) -> str:
@@ -24,8 +24,9 @@ class SandboxTool(BaseTool):
         headers = {
             "Content-Type": "application/json",  
         }
+        exit_ = query.strip("'\"").strip() == "^D"
         json_data = {
-            "code_type": "shell",
+            "exit": exit_,
             "code": query
         }
         response = requests.post(url, headers=headers, json=json_data)
@@ -34,4 +35,4 @@ class SandboxTool(BaseTool):
             data = response.json()
             return data
         else:
-            return f"Request failed, status code：{response.status_code}"
+            return f"Request failed, status code: {response.status_code}"
