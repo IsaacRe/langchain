@@ -5,22 +5,24 @@ from typing import Any, Dict
 import pexpect
 from datetime import datetime, timedelta
 import time
+import re
 
 READ_BUFFER = 1_000_000
+CMD_PROMPT_PATH_RE = re.compile(r"^[^a-zA-Z0-9_-]*(?P<user_string>[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+):[a-zA-Z0-9_/~-]+(#|\$)\s*$")
 
 
 def poll_for_output(
     process: pexpect.spawn,
     poll_time: float = 0.2,
-    idle_timeout: float = 5.0,
+    idle_timeout: float = 2.0,
     hard_timeout: float = 30.0,
 ) -> str:
     end_time = datetime.utcnow() + timedelta(seconds=hard_timeout)
-    output = b""
+    output = ""
     while True:
         remaining_time = (end_time - datetime.utcnow()).total_seconds()
         try:
-            output += process.read_nonblocking(READ_BUFFER, timeout=min(remaining_time, idle_timeout))
+            output += process.read_nonblocking(READ_BUFFER, timeout=min(remaining_time, idle_timeout)).decode()
         except pexpect.exceptions.TIMEOUT:
             return output
         except pexpect.exceptions.EOF:
@@ -33,22 +35,26 @@ def poll_for_output(
 
 class SandboxShell:
 
-    def __init__(self, timeout: int = 10) -> None:
-        self.subprocess: pexpect.spawn = None
+    def __init__(self, timeout: int = 10, shell_cmd: str = "/bin/bash", user_string: str = "root@sandbox", replace_user_string: bool = True) -> None:
+        self.shell_cmd = shell_cmd
+        self.output_user_string = user_string
+        self.replace_user_string = replace_user_string
+        self.subprocess = pexpect.spawn(shell_cmd)
+        cmd_prompt = self.subprocess.read_nonblocking(READ_BUFFER, timeout=0.1).decode()
+        match = CMD_PROMPT_PATH_RE.search(cmd_prompt)
+        self.system_user_string = ""
+        if match:
+            self.system_user_string = match.group("user_string")
         self.timeout = timeout
 
     def execute(self, command: str) -> str:
-        if self.subprocess is None:
-            process = pexpect.spawn(command + "\n")
-            out = poll_for_output(process)
-            if process.isalive():
-                self.subprocess = process
-        else:
-            self.subprocess.send(command + "\n")
-            out = poll_for_output(self.subprocess)
-            if not self.subprocess.isalive():
-                self.subprocess.close()
-                self.subprocess = None
+        self.subprocess.send(command + "\n")
+        out = poll_for_output(self.subprocess)
+        if not self.subprocess.isalive():
+            self.subprocess.close()
+            self.subprocess = pexpect.spawn(self.shell_cmd)
+        if self.replace_user_string:
+            out = out.replace(self.system_user_string, self.output_user_string)
         return out
         
     def exit(self):
