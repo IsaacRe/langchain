@@ -11,26 +11,46 @@ READ_BUFFER = 1_000_000
 CMD_PROMPT_PATH_RE = re.compile(r"^[^a-zA-Z0-9_-]*(?P<user_string>[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+):[a-zA-Z0-9_/~-]+(#|\$)\s*$")
 
 
+class ByteLogger:
+
+    def __init__(self) -> None:
+        self.buffer = b""
+
+    def add(self, bstring: bytes):
+        self.buffer += bstring
+
+    def try_flush(self):
+        try:
+            print(self.buffer.decode(), end="")
+            self.buffer = b""
+        except UnicodeDecodeError:
+            return
+
+    def log_new(self, bstring: bytes):
+        self.add(bstring)
+        self.try_flush()
+
+
 def poll_for_output(
     process: pexpect.spawn,
-    poll_time: float = 0.2,
     idle_timeout: float = 2.0,
-    hard_timeout: float = 30.0,
+    hard_timeout: float = 15.0,
+    debug: bool = False
 ) -> str:
     end_time = datetime.utcnow() + timedelta(seconds=hard_timeout)
-    output = ""
-    while True:
-        remaining_time = (end_time - datetime.utcnow()).total_seconds()
-        try:
-            output += process.read_nonblocking(READ_BUFFER, timeout=min(remaining_time, idle_timeout)).decode()
-        except pexpect.exceptions.TIMEOUT:
-            return output
-        except pexpect.exceptions.EOF:
-            return output
-        remaining_time = (end_time - datetime.utcnow()).total_seconds()
-        if remaining_time <= poll_time:
-            return output
-        time.sleep(poll_time)
+    byte_logger = ByteLogger()
+    output = b""
+    try:
+        while datetime.utcnow() < end_time:
+            new_output = process.read_nonblocking(timeout=idle_timeout)
+            if debug:
+                byte_logger.log_new(new_output)
+            output += new_output
+        return output.decode()
+    except pexpect.exceptions.TIMEOUT:
+        return output.decode()
+    except pexpect.exceptions.EOF:
+        return output.decode()
 
 
 class SandboxShell:
